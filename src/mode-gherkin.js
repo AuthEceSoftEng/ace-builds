@@ -110,11 +110,12 @@ oop.inherits(GherkinHighlightRules, TextHighlightRules);
 exports.GherkinHighlightRules = GherkinHighlightRules;
 });
 
-define("ace/mode/gherkin",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/gherkin_highlight_rules"], function(require, exports, module) {
+define("ace/mode/gherkin",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/gherkin_highlight_rules","ace/worker/worker_client"], function(require, exports, module) {
 
 var oop = require("../lib/oop");
 var TextMode = require("./text").Mode;
 var GherkinHighlightRules = require("./gherkin_highlight_rules").GherkinHighlightRules;
+var WorkerClient = require("../worker/worker_client").WorkerClient;
 
 var Mode = function() {
     this.HighlightRules = GherkinHighlightRules;
@@ -141,7 +142,6 @@ oop.inherits(Mode, TextMode);
             return indent;
         }
         
-
         if (state == "start") {
             if (line.match("Scenario:|Feature:|Scenario Outline:|Background:")) {
                 indent += space2;
@@ -155,6 +155,22 @@ oop.inherits(Mode, TextMode);
 
         return indent;
     };
+
+    this.createWorker = function(session) {
+        var worker = new WorkerClient(["ace"], "ace/mode/gherkin_worker", "Worker");
+        worker.attachToDocument(session.getDocument());
+
+        worker.on("error", function(e) {
+            session.setAnnotations(e.data);
+        });
+
+        worker.on("terminate", function() {
+            session.clearAnnotations();
+        });
+
+        return worker;
+    };
+
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
